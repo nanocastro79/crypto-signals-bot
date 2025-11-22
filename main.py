@@ -261,12 +261,17 @@ print("Mensaje a enviar:")
 print(mensaje)
 
 # ========================
-# GUARDAR HISTORIAL EN CSV
+# GUARDAR HISTORIAL EN CSV (EXTENDIDO)
 # ========================
 import csv
+import os
 
 history_file = "signals_history.csv"
-fieldnames = ["date", "symbol", "prob", "signal", "strength", "price", "score"]
+fieldnames = [
+    "date", "symbol", "prob", "signal",
+    "strength", "price", "score",
+    "result", "forward_ret_5", "correct"
+]
 
 if fecha_ref is not None:
     fecha_str = str(fecha_ref.date())
@@ -290,6 +295,9 @@ with open(history_file, mode, newline="") as f:
             "strength": data["fuerza"],
             "price": round(data["price"], 6),
             "score": round(data["score"], 6),
+            "result": "",
+            "forward_ret_5": "",
+            "correct": ""
         })
 
 # ========================
@@ -300,5 +308,93 @@ if TELEGRAM_TOKEN and CHAT_ID:
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.get(url, params={"chat_id": CHAT_ID, "text": mensaje})
     print("Enviado a Telegram.")
+    # ================================
+# 1B — COMPLETAR HISTORIAL (5 días después)
+# ================================
+import pandas as pd
+import csv
+import os
+from datetime import datetime, timedelta
+
+history_file = "signals_history.csv"
+
+if os.path.exists(history_file):
+    hist = pd.read_csv(history_file)
+
+    # Convertir fecha
+    hist["date"] = pd.to_datetime(hist["date"])
+
+    # Procesar solo señales antiguas sin completar
+    pending = hist[hist["result"].isna() | (hist["result"] == "")].copy()
+
+    if not pending.empty:
+        print(f"Completando {len(pending)} señales anteriores...")
+
+        updated_rows = []
+
+        for _, row in pending.iterrows():
+            sym = row["symbol"]
+            start_date = row["date"]
+            end_date = start_date + timedelta(days=5)
+
+            ticker_map = {
+                "BTC": "BTC-USD",
+                "ETH": "ETH-USD",
+                "SOL": "SOL-USD",
+                "BNB": "BNB-USD",
+                "XRP": "XRP-USD",
+                "ADA": "ADA-USD"
+            }
+
+            yf_symbol = ticker_map[sym]
+
+            # Descargar precios desde la fecha original hasta 10 días más
+            df_test = yf.download(
+                yf_symbol,
+                start=start_date,
+                end=end_date + timedelta(days=2),
+                interval="1d",
+                auto_adjust=True
+            )
+
+            if len(df_test) < 2:
+                continue
+
+            try:
+                price_start = df_test["Close"].iloc[0]
+                price_end = df_test["Close"].iloc[-1]
+            except Exception:
+                continue
+
+            forward_ret = (price_end / price_start) - 1
+
+            # Determinar si la señal fue correcta
+            if row["signal"] == "LONG":
+                correct = forward_ret > 0
+            elif row["signal"] == "SHORT":
+                correct = forward_ret < 0
+            else:
+                correct = None
+
+            updated_rows.append({
+                "index": row.name,
+                "forward_ret_5": forward_ret,
+                "correct": correct,
+                "result": "WIN" if correct else "LOSS"
+            })
+
+        # Actualizar el CSV
+        if updated_rows:
+            for upd in updated_rows:
+                idx = upd["index"]
+                hist.loc[idx, "forward_ret_5"] = upd["forward_ret_5"]
+                hist.loc[idx, "correct"] = upd["correct"]
+                hist.loc[idx, "result"] = upd["result"]
+
+            hist.to_csv(history_file, index=False)
+            print("Historial actualizado con éxito.")
+        else:
+            print("No había señales pendientes para completar.")
+
 else:
     print("Faltan TELEGRAM_TOKEN o CHAT_ID en los secretos.")
