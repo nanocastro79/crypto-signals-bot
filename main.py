@@ -28,7 +28,7 @@ def hurst_est(x):
 
 def process_symbol(symbol):
 
-    df = yf.download(symbol, period="5y", interval="1d", interval="1d", auto_adjust=True)
+    df = yf.download(symbol, period="5y", interval="1d", auto_adjust=True)
     df = df.dropna().copy()
 
     df.rename(columns={
