@@ -261,6 +261,38 @@ print("Mensaje a enviar:")
 print(mensaje)
 
 # ========================
+# GUARDAR HISTORIAL EN CSV
+# ========================
+import csv
+
+history_file = "signals_history.csv"
+fieldnames = ["date", "symbol", "prob", "signal", "strength", "price", "score"]
+
+if fecha_ref is not None:
+    fecha_str = str(fecha_ref.date())
+else:
+    from datetime import datetime
+    fecha_str = datetime.utcnow().date().isoformat()
+
+mode = "a"
+file_exists = os.path.exists(history_file)
+
+with open(history_file, mode, newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=fieldnames)
+    if not file_exists:
+        writer.writeheader()
+    for name, data in results.items():
+        writer.writerow({
+            "date": fecha_str,
+            "symbol": name,
+            "prob": round(data["prob"], 6),
+            "signal": data["signal"],
+            "strength": data["fuerza"],
+            "price": round(data["price"], 6),
+            "score": round(data["score"], 6),
+        })
+
+# ========================
 # ENVÍO A TELEGRAM
 # ========================
 
