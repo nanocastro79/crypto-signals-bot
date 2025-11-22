@@ -147,6 +147,29 @@ fecha_ref = None
 riesgo_usd = CAPITAL_TOTAL * RIESGO_POR_TRADE
 tamaño_usd = riesgo_usd / STOP_LOSS_PCT  # posición total sugerida por operación
 
+def compute_strength(signal, prob):
+    """
+    Devuelve (score, etiqueta_fuerza) en función de la señal y probabilidad.
+    score se usa para el ranking.
+    """
+    if signal == "LONG":
+        score = prob
+    elif signal == "SHORT":
+        score = 1.0 - prob
+    else:
+        return 0.0, "NEUTRO"
+
+    # Etiqueta de fuerza
+    if score >= 0.80:
+        label = "FUERTE"
+    elif score >= 0.70:
+        label = "MEDIA"
+    elif score >= TH:  # 0.65 <= score < 0.70
+        label = "DÉBIL"
+    else:
+        label = "NEUTRO"
+    return score, label
+
 for name, ticker in symbols.items():
     prob, price, last_date = process_symbol(ticker)
     if fecha_ref is None:
@@ -166,6 +189,7 @@ for name, ticker in symbols.items():
         tp = None
 
     unidades = tamaño_usd / price if signal != "NEUTRO" else 0.0
+    score, fuerza = compute_strength(signal, prob)
 
     results[name] = {
         "prob": prob,
@@ -175,6 +199,8 @@ for name, ticker in symbols.items():
         "tp": tp,
         "size_usd": tamaño_usd,
         "units": unidades,
+        "score": score,
+        "fuerza": fuerza,
     }
 
 # ========================
@@ -183,29 +209,51 @@ for name, ticker in symbols.items():
 
 lineas = []
 
+# Cabecera
 if fecha_ref is not None:
     lineas.append(f"SEÑALES DIARIAS – IA 5 DÍAS\nFecha: {fecha_ref.date()}\n")
 else:
     lineas.append("SEÑALES DIARIAS – IA 5 DÍAS\n\n")
 
-# Resumen por cripto
+# Resumen por cripto (con fuerza)
 for name, data in results.items():
-    lineas.append(f"{name}: {data['signal']} ({data['prob']:.3f})")
+    lineas.append(
+        f"{name}: {data['signal']} ({data['prob']:.3f}) "
+        f"[fuerza: {data['fuerza']}]"
+    )
 
 lineas.append(
-    f"\nCapital por trade considerado: {CAPITAL_TOTAL:.2f} USD | Riesgo: {RIESGO_POR_TRADE*100:.1f}%"
+    f"\nCapital por trade considerado: {CAPITAL_TOTAL:.2f} USD | "
+    f"Riesgo: {RIESGO_POR_TRADE*100:.1f}%"
 )
 
-# Detalle solo para señales operables
-for name, data in results.items():
-    if data["signal"] != "NEUTRO":
+# Ranking de oportunidades (solo LONG/SHORT, ordenadas por score)
+operables = [
+    (name, data) for name, data in results.items()
+    if data["signal"] != "NEUTRO" and data["score"] > 0
+]
+operables_sorted = sorted(operables, key=lambda x: x[1]["score"], reverse=True)
+
+if operables_sorted:
+    lineas.append("\nTOP OPORTUNIDADES HOY:")
+    for name, data in operables_sorted:
         lineas.append(
-            f"\n{name} – Detalle:\n"
-            f"Tamaño sugerido: {data['size_usd']:.2f} USD (~{data['units']:.6f} {name})\n"
-            f"Precio actual: {data['price']:.2f}\n"
-            f"Stop-Loss: {data['sl']:.2f}\n"
-            f"Take-Profit: {data['tp']:.2f}"
+            f"- {name}: {data['signal']} "
+            f"({data['prob']:.3f}) [fuerza: {data['fuerza']}]"
         )
+else:
+    lineas.append("\nTOP OPORTUNIDADES HOY: ninguna (todo en zona neutra)")
+
+# Detalle solo para señales operables
+for name, data in operables_sorted:
+    lineas.append(
+        f"\n{name} – Detalle:\n"
+        f"Tamaño sugerido: {data['size_usd']:.2f} USD "
+        f"(~{data['units']:.6f} {name})\n"
+        f"Precio actual: {data['price']:.2f}\n"
+        f"Stop-Loss: {data['sl']:.2f}\n"
+        f"Take-Profit: {data['tp']:.2f}"
+    )
 
 mensaje = "\n".join(lineas)
 
