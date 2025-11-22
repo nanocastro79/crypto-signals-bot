@@ -133,9 +133,14 @@ def process_symbol(symbol):
 # ========================
 
 symbols = {
+symbols = {
     "BTC": "BTC-USD",
     "ETH": "ETH-USD",
-    "SOL": "SOL-USD"
+    "SOL": "SOL-USD",
+    "BNB": "BNB-USD",
+    "XRP": "XRP-USD",
+    "ADA": "ADA-USD",
+}
     # Podés agregar más, por ejemplo:
     # "BNB": "BNB-USD",
     # "XRP": "XRP-USD",
