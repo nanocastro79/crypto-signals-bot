@@ -10,6 +10,8 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -30,3 +32,16 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          
+      - name: Commit signals history
+        if: success()
+        run: |
+          if [ -f signals_history.csv ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add signals_history.csv
+            git commit -m "Update signals history" || echo "No changes to commit"
+            git push
+          else
+            echo "No signals_history.csv found, skipping commit."
+          fi
