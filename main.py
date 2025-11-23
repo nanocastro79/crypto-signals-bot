@@ -319,7 +319,14 @@ from datetime import datetime, timedelta
 history_file = "signals_history.csv"
 
 if os.path.exists(history_file):
+    try:
     hist = pd.read_csv(history_file)
+except Exception:
+    print("Historial corrupto. Creando archivo nuevo.")
+    hist = pd.DataFrame(columns=[
+        "date","symbol","prob","signal","strength","price",
+        "score","result","forward_ret_5","correct"
+    ])
 
     # Convertir fecha
     hist["date"] = pd.to_datetime(hist["date"])
