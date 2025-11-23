@@ -309,6 +309,7 @@ if TELEGRAM_TOKEN and CHAT_ID:
     requests.get(url, params={"chat_id": CHAT_ID, "text": mensaje})
     print("Enviado a Telegram.")
     # ================================
+# ================================
 # 1B — COMPLETAR HISTORIAL (5 días después)
 # ================================
 import pandas as pd
@@ -319,21 +320,21 @@ from datetime import datetime, timedelta
 history_file = "signals_history.csv"
 
 if os.path.exists(history_file):
-        try:
-            hist = pd.read_csv(history_file)
-        except Exception:
-            print("Historial corrupto. Creando archivo nuevo.")
-            hist = pd.DataFrame(columns=[
-        "date","symbol","prob","signal","strength","price",
-        "score","result","forward_ret_5","correct"
-    ])
 
+    try:
+        hist = pd.read_csv(history_file)
+    except Exception:
+        print("Historial corrupto. Creando archivo nuevo.")
+        hist = pd.DataFrame(columns=[
+            "date","symbol","prob","signal","strength","price",
+            "score","result","forward_ret_5","correct"
+        ])
 
     # Convertir fecha
     hist["date"] = pd.to_datetime(hist["date"])
 
-    # Procesar solo señales antiguas sin completar
-    pending = hist[hist["result"].isna() | (hist["result"] == "")].copy()
+    # Señales sin completar
+    pending = hist[(hist["result"].isna()) | (hist["result"] == "")].copy()
 
     if not pending.empty:
         print(f"Completando {len(pending)} señales anteriores...")
@@ -356,7 +357,6 @@ if os.path.exists(history_file):
 
             yf_symbol = ticker_map[sym]
 
-            # Descargar precios desde la fecha original hasta 10 días más
             df_test = yf.download(
                 yf_symbol,
                 start=start_date,
@@ -376,7 +376,6 @@ if os.path.exists(history_file):
 
             forward_ret = (price_end / price_start) - 1
 
-            # Determinar si la señal fue correcta
             if row["signal"] == "LONG":
                 correct = forward_ret > 0
             elif row["signal"] == "SHORT":
@@ -391,7 +390,6 @@ if os.path.exists(history_file):
                 "result": "WIN" if correct else "LOSS"
             })
 
-        # Actualizar el CSV
         if updated_rows:
             for upd in updated_rows:
                 idx = upd["index"]
