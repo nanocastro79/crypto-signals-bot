@@ -68,17 +68,23 @@ CRYPTO_LIST = {
 # --------------------------
 def run_bot():
 
+    print("=== Iniciando bot ===")
+
     results = []
 
     for symbol, yahoo_symbol in CRYPTO_LIST.items():
+        print(f"Descargando datos para {symbol}...")
         try:
             df = get_market_data(yahoo_symbol, days=5)
+            print(f"Datos obtenidos para {symbol}: {df.shape}")
             signal, prob = generate_signals(df)
             results.append((symbol, signal, prob))
         except Exception as e:
+            print(f"ERROR en {symbol}: {e}")
             results.append((symbol, "ERROR", str(e)))
 
-    # Armar mensaje final
+    print("Generando mensaje final...")
+
     message = "SEÑALES DIARIAS – IA\n\n"
 
     for symbol, signal, prob in results:
@@ -87,7 +93,7 @@ def run_bot():
         else:
             message += f"{symbol}: {signal} ({prob:.3f})\n"
 
-    # Enviar a Telegram
+    print("Enviando mensaje a Telegram...")
     send_telegram(message)
 
     print("Reporte enviado correctamente.")
