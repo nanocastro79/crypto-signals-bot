@@ -8,6 +8,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 def get_btc_price():
     url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
     r = requests.get(url)
+    print("DEBUG:", r.text)   # <<< AÑADIR ESTO
     data = r.json()
     return float(data["price"])
 
