@@ -71,14 +71,14 @@ def run_bot():
         except Exception as e:
             results.append((symbol, "ERROR", str(e)))
 
-    # Armar mensaje final
+       # Armar mensaje final
     message = "SEÑALES DIARIAS – IA\n\n"
 
     for symbol, signal, prob in results:
-    if signal == "ERROR":
-        message += f"{symbol}: ERROR ({prob})\n"
-    else:
-        message += f"{symbol}: {signal} ({prob:.3f})\n"
+        if signal == "ERROR":
+            message += f"{symbol}: ERROR ({prob})\n"
+        else:
+            message += f"{symbol}: {signal} ({prob:.3f})\n"
 
     # Enviar a Telegram
     send_telegram(message)
