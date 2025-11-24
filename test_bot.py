@@ -1,8 +1,9 @@
+import os
 import requests
 import json
 
-BOT_TOKEN = "8515150423:AAFfsZg8A1jFk_glSYJ_iirwr9mG9DAL68I"
-CHAT_ID = "2022010857"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 def get_btc_price():
     url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
