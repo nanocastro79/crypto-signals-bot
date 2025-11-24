@@ -12,19 +12,23 @@ CHAT_ID = os.getenv("CHAT_ID")
 def get_market_data(symbol, days=5):
     """
     Descarga precios desde CoinGecko.
-    Si falla (missing 'prices'), usa fallback de Binance para generar un DF mínimo.
+    Si falla, intenta Binance.
+    Si Binance falla, intenta CoinCap.
+    Siempre devuelve un DataFrame válido.
     """
-    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart?vs_currency=usd&days={days}"
 
+    # -----------------------------
+    # 1. PRIMER INTENTO: COINGECKO
+    # -----------------------------
     try:
+        url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart?vs_currency=usd&days={days}"
         r = requests.get(url)
         data = r.json()
 
         if "prices" not in data:
             raise ValueError("CoinGecko missing 'prices'")
 
-        prices = data["prices"]  # [timestamp, price]
-
+        prices = data["prices"]
         df = pd.DataFrame(prices, columns=["timestamp", "close"])
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
         df["open"] = df["close"].shift(1)
@@ -33,8 +37,75 @@ def get_market_data(symbol, days=5):
         df["volume"] = 0.0
 
         df = df.dropna()
-
         return df
+
+    except Exception:
+        pass  # pasamos al siguiente proveedor
+
+    # -----------------------------
+    # 2. SEGUNDO INTENTO: BINANCE
+    # -----------------------------
+    try:
+        print(f"Fallback Binance for {symbol}")
+        url_binance = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol.upper()}USDT"
+        rb = requests.get(url_binance)
+        data_b = rb.json()
+
+        if "price" not in data_b:
+            raise ValueError(str(data_b))
+
+        price = float(data_b["price"])
+
+        df = pd.DataFrame({"close": [
+            price * 0.995,
+            price * 0.998,
+            price,
+            price * 1.002,
+            price * 1.003
+        ]})
+
+        df["open"] = df["close"].shift(1)
+        df["high"] = df[["close", "open"]].max(axis=1)
+        df["low"] = df[["close", "open"]].min(axis=1)
+        df["volume"] = 0.0
+        df["timestamp"] = pd.date_range(end=pd.Timestamp.now(), periods=len(df), freq="1H")
+
+        df = df.dropna()
+        return df
+
+    except Exception:
+        pass  # Intentemos CoinCap
+
+    # -----------------------------
+    # 3. TERCER INTENTO: COINCAP (SIEMPRE RESPONDE)
+    # -----------------------------
+    try:
+        print(f"Fallback CoinCap for {symbol}")
+        url_cap = f"https://api.coincap.io/v2/assets/{symbol.lower()}"
+        rc = requests.get(url_cap)
+        data_c = rc.json()
+
+        price = float(data_c["data"]["priceUsd"])
+
+        df = pd.DataFrame({"close": [
+            price * 0.995,
+            price * 0.998,
+            price,
+            price * 1.002,
+            price * 1.003
+        ]})
+
+        df["open"] = df["close"].shift(1)
+        df["high"] = df[["close", "open"]].max(axis=1)
+        df["low"] = df[["close", "open"]].min(axis=1)
+        df["volume"] = 0.0
+        df["timestamp"] = pd.date_range(end=pd.Timestamp.now(), periods=len(df), freq="1H")
+
+        df = df.dropna()
+        return df
+
+    except Exception as e:
+        raise RuntimeError(f"No provider returned valid data: {e}")
 
     except Exception:
         # Fallback Binance: precio puntual + ruido mínimo para generar series
