@@ -75,6 +75,9 @@ def run_bot():
     message = "SEÑALES DIARIAS – IA\n\n"
 
     for symbol, signal, prob in results:
+    if signal == "ERROR":
+        message += f"{symbol}: ERROR ({prob})\n"
+    else:
         message += f"{symbol}: {signal} ({prob:.3f})\n"
 
     # Enviar a Telegram
